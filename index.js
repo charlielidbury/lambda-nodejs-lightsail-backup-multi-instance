@@ -10,13 +10,6 @@ exports.handler = (event, context, callback) => {
   const backupMonthsMax = 3; // keep at least 3  monthly  backups
 
   // ================================        
-  // Unique short tag for snapshots
-  // ================================
-
-  // Set it differently in your Lambdas for different instances. For "ABC" label it would be ABCKW8TAG6 the name of the backups 
-
-
-  // ================================        
   // Create an AWS Lightsail client
   // ================================
 
