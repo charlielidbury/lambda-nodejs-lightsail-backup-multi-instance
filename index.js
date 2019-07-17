@@ -5,7 +5,7 @@ exports.handler = (event, context, callback) => {
   // Define your backups
   // ================================
 
-  const instanceName = "LAMP_Stack-2GB-Frankfurt-1" // Put your instance name here http://take.ms/dChbs
+  // const instanceName = "Kellys_Demo_SQL_Server_2016_Express-8GB-London-1" // Put your instance name here http://take.ms/dChbs
   const backupDaysMax = 7; // keep at least 7 daily backups 
   const backupWeeksMax = 4; // keep at least 4  weekly  backups
   const backupMonthsMax = 3; // keep at least 3  monthly  backups
@@ -14,7 +14,7 @@ exports.handler = (event, context, callback) => {
   // Unique short tag for snapshots
   // ================================
 
-  const labelTag = "ABC" // Use labelTag to avoid the conflict with overriding of the backups from different instances you have.
+  // const labelTag = "ABC" // Use labelTag to avoid the conflict with overriding of the backups from different instances you have.
   // Set it differently in your Lambdas for different instances. For "ABC" label it would be ABCKW8TAG6 the name of the backups 
 
 
@@ -23,7 +23,7 @@ exports.handler = (event, context, callback) => {
   // ================================
 
   var AWS = require('aws-sdk');
-  AWS.config.update({ region: 'eu-central-1' });
+  AWS.config.update({ region: 'eu-west-2' });
   var Lightsail = new AWS.Lightsail();
 
   // ================================        
@@ -55,105 +55,115 @@ exports.handler = (event, context, callback) => {
   // CREATE A NEW SNAPSHOT
   // ================================
 
-  var params = {
-    "instanceSnapshotName": "KW" + kw + "TAG" + backupDaysNR
-  }
-
-  Lightsail.getInstanceSnapshot(params, function (err, data) {
-    if (err) { //console.log(err, err.stack); // an error occurred
-      console.log('no backup, we do it new');
-      newDaySnapshot(instanceName, "KW" + kw + "TAG" + backupDaysNR)
-
-    }
-    else {
-      console.log(data);  // successful response
-
-      // delete old backup
-      Lightsail.deleteInstanceSnapshot(params, function (err, data) {
-        if (err) {
-          // console.log(err, err.stack); // an error occurred
+  Lightsail.getInstances({}, function(err, data) {
+    if (err) return console.log(err);
+    
+    data.instances.forEach(function(instance) {
+      const instanceName = instance.name;
+      
+      var params = {
+        "instanceSnapshotName": "KW" + kw + "TAG" + backupDaysNR
+      }
+    
+      Lightsail.getInstanceSnapshot(params, function (err, data) {
+        if (err) { //console.log(err, err.stack); // an error occurred
+          console.log('no backup, we do it new');
+          newDaySnapshot(instanceName, "KW" + kw + "TAG" + backupDaysNR)
+    
         }
         else {
-          console.log(data); // successful response
-          newDaySnapshot(instanceName, backupDaysNR)
+          console.log(data);  // successful response
+    
+          // delete old backup
+          Lightsail.deleteInstanceSnapshot(params, function (err, data) {
+            if (err) {
+              // console.log(err, err.stack); // an error occurred
+            }
+            else {
+              console.log(data); // successful response
+              newDaySnapshot(instanceName, backupDaysNR)
+            }
+          });
         }
       });
-    }
-  });
-
-  function newDaySnapshot(instanceName, backupDaysNR) {
-    var params = {
-      instanceName: instanceName,
-      instanceSnapshotName: labelTag + backupDaysNR
-    };
-    Lightsail.createInstanceSnapshot(params, function (err, data) {
-      if (err) {
-        // console.log(err, err.stack); // an error occurred
+    
+      function newDaySnapshot(instanceName, backupDaysNR) {
+        var params = {
+          instanceName: instanceName,
+          instanceSnapshotName: instanceName + backupDaysNR
+        };
+        Lightsail.createInstanceSnapshot(params, function (err, data) {
+          if (err) {
+            // console.log(err, err.stack); // an error occurred
+          }
+          else {
+            console.log(data); // successful response
+          }
+        });
       }
-      else {
-        console.log(data); // successful response
-      }
-    });
-  }
-
-  // ================================        
-  //  DELETING OLD SNAPSHOTS
-  // ================================
-
-  var params = {};
-  var backupDaysTillNow;
-  var saveBackup;
-  var backupDate;
-
-  Lightsail.getInstanceSnapshots(params, getSnapshots);
-
-  function getSnapshots(err, data) {
-    if (err) {
-      console.log(err, err.stack); // an error occurred
-    }
-    else {
-      for (var i = 0; i < data.instanceSnapshots.length; i++) { // BROWSE THROUGH SNAPSHOTS
-        var backupFromInstance = data.instanceSnapshots[i].fromInstanceName;
-        backupDate = new Date(data.instanceSnapshots[i].createdAt);
-        backupDaysTillNow = Math.floor((now - backupDate) / oneDay);
-        saveBackup = false;
-        if (backupFromInstance == instanceName) {
-                // DO NOT DELETE LAST backupDaysMax DAYS BACKUPS
-                if (backupDaysTillNow <= backupDaysMax) { saveBackup = true; }
-                // DO NOT DELETE LAST backupWeeksMax WEEKS BACKUPS
-                if (backupDaysTillNow > backupDaysMax && backupDaysTillNow <= backupWeeksMax * 7 && backupDate.getDay() == 0) { saveBackup = true; }
-                // DO NOT DELETE LAST backupWeeksMax MONTHS BACKUPS
-                if (backupDaysTillNow > backupWeeksMax * 7 && backupDaysTillNow <= backupMonthsMax * 30 && backupDate.getDate() < 8 && backupDate.getDay() == 0) { saveBackup = true; }
-
-                if (saveBackup) {
-                // WE KEPT THESE BACKUPS
-                console.log(`kept ${backupDate.getDate()} ${data.instanceSnapshots[i].createdAt}  ${data.instanceSnapshots[i].name}`);
-                } else {
-                // WE DELETED THESE BACKUPS
-                var paramsDelete = {
-                    "instanceSnapshotName": data.instanceSnapshots[i].name
-                }
-                Lightsail.deleteInstanceSnapshot(paramsDelete, function () {
-
-                    if (err) console.log(err, err.stack);
-                     else console.log(`Deleted ${paramsDelete.instanceSnapshotName}`);
-                });
-                }
-        } else {
-
-            console.log('Will ignore this backup because it belongs to an instance other than ' + instanceName);
+    
+      // ================================        
+      //  DELETING OLD SNAPSHOTS
+      // ================================
+    
+      var params = {};
+      var backupDaysTillNow;
+      var saveBackup;
+      var backupDate;
+    
+      Lightsail.getInstanceSnapshots(params, getSnapshots);
+    
+      function getSnapshots(err, data) {
+        if (err) {
+          console.log(err, err.stack); // an error occurred
+        }
+        else {
+          for (var i = 0; i < data.instanceSnapshots.length; i++) { // BROWSE THROUGH SNAPSHOTS
+            var backupFromInstance = data.instanceSnapshots[i].fromInstanceName;
+            backupDate = new Date(data.instanceSnapshots[i].createdAt);
+            backupDaysTillNow = Math.floor((now - backupDate) / oneDay);
+            saveBackup = false;
+            if (backupFromInstance == instanceName) {
+                    // DO NOT DELETE LAST backupDaysMax DAYS BACKUPS
+                    if (backupDaysTillNow <= backupDaysMax) { saveBackup = true; }
+                    // DO NOT DELETE LAST backupWeeksMax WEEKS BACKUPS
+                    if (backupDaysTillNow > backupDaysMax && backupDaysTillNow <= backupWeeksMax * 7 && backupDate.getDay() == 0) { saveBackup = true; }
+                    // DO NOT DELETE LAST backupWeeksMax MONTHS BACKUPS
+                    if (backupDaysTillNow > backupWeeksMax * 7 && backupDaysTillNow <= backupMonthsMax * 30 && backupDate.getDate() < 8 && backupDate.getDay() == 0) { saveBackup = true; }
+    
+                    if (saveBackup) {
+                    // WE KEPT THESE BACKUPS
+                    console.log(`kept ${backupDate.getDate()} ${data.instanceSnapshots[i].createdAt}  ${data.instanceSnapshots[i].name}`);
+                    } else {
+                    // WE DELETED THESE BACKUPS
+                    var paramsDelete = {
+                        "instanceSnapshotName": data.instanceSnapshots[i].name
+                    }
+                    Lightsail.deleteInstanceSnapshot(paramsDelete, function () {
+    
+                        if (err) console.log(err, err.stack);
+                         else console.log(`Deleted ${paramsDelete.instanceSnapshotName}`);
+                    });
+                    }
+            } else {
+    
+                console.log('Will ignore this backup because it belongs to an instance other than ' + instanceName);
+            }
+          }
+    
+          // IF WE HAVE MORE BACKUPS WE SHOULD NAVIGATE TO THE NEXT PAGE AND USE RECURSION
+          console.log('\n\r=============== TOKEN =============== ');
+          console.log(data.nextPageToken);
+          if (typeof data.nextPageToken != 'undefined') {
+            var params = {
+              pageToken: data.nextPageToken
+            };
+            Lightsail.getInstanceSnapshots(params, getSnapshots);
+          }
         }
       }
+    });
+  });
 
-      // IF WE HAVE MORE BACKUPS WE SHOULD NAVIGATE TO THE NEXT PAGE AND USE RECURSION
-      console.log('\n\r=============== TOKEN =============== ');
-      console.log(data.nextPageToken);
-      if (typeof data.nextPageToken != 'undefined') {
-        var params = {
-          pageToken: data.nextPageToken
-        };
-        Lightsail.getInstanceSnapshots(params, getSnapshots);
-      }
-    }
-  }
+  
 };
