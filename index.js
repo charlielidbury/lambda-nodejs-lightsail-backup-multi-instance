@@ -5,7 +5,6 @@ exports.handler = (event, context, callback) => {
   // Define your backups
   // ================================
 
-  // const instanceName = "Kellys_Demo_SQL_Server_2016_Express-8GB-London-1" // Put your instance name here http://take.ms/dChbs
   const backupDaysMax = 7; // keep at least 7 daily backups 
   const backupWeeksMax = 4; // keep at least 4  weekly  backups
   const backupMonthsMax = 3; // keep at least 3  monthly  backups
@@ -14,7 +13,6 @@ exports.handler = (event, context, callback) => {
   // Unique short tag for snapshots
   // ================================
 
-  // const labelTag = "ABC" // Use labelTag to avoid the conflict with overriding of the backups from different instances you have.
   // Set it differently in your Lambdas for different instances. For "ABC" label it would be ABCKW8TAG6 the name of the backups 
 
 
