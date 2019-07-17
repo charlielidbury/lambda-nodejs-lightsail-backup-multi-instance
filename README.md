@@ -38,7 +38,8 @@ We need to set up some permissions, so that our Lambda function has enough right
                         "lightsail:CreateInstanceSnapshot",
                         "lightsail:DeleteInstanceSnapshot",
                         "lightsail:GetInstanceSnapshot",
-                        "lightsail:GetInstanceSnapshots"
+                        "lightsail:GetInstanceSnapshots",
+                        "lightsail:GetInstances"
                     ],
                     "Resource": [
                         "*"
@@ -81,9 +82,8 @@ We need to set up some permissions, so that our Lambda function has enough right
         const backupMonthsMax = 3; // keep at least 3  monthly  backups
 </code></pre>        
 
-Set the name and the region accordingly to your settings in the line
+Set the region accordingly to your settings in the line
  <pre><code>
-      const instanceName = "LAMP_Stack-2GB-Frankfurt-1"
       AWS.config.update({ region: 'eu-central-1' });
 </code></pre>
 
